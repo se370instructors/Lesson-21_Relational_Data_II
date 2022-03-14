@@ -1,0 +1,195 @@
+---
+title: 'AY22-2 SE370: Lesson 21: Relational Data II'
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(readxl)
+library(RSQLite)
+library(DBI)
+```
+
+## More on Keys & Joins...
+
+#### Composite Keys are multi-column keys.
+
+For example, let's say we have:
+
+```{r Composite Key Data}
+
+artists <- data.frame(first = c("John", "George", "Mick", "Jimmy"), last = c("Lennon", "Harrison", "Jagger", "Hendricks"), insturment = c("bass", "guitar", "singer", "guitar"))
+
+band <- data.frame(first = c("John", "John", "George", "Mick"), last = c("Bonham","Lennon", "Harrison", "Jagger"), band = c("Led Zeppelin", "The Beatles", "The Beatles", "The Rolling Stones"))
+
+```
+
+Join these dataframes using the first name and last name columns:
+
+```{r Composite}
+
+complete <- artists %>%
+  left_join(band, by = c("first", "last"))
+
+# What happens if we don't use both keys???
+
+complete_2 <- artists %>%
+  left_join(band, by = "last")
+
+```
+
+#### What if our keys don't have the same column name?
+
+```{r Data update}
+
+band <- data.frame(FIRST_NAME = c("John", "John", "George", "Mick"), LAST_NAME = c("Bonham","Lennon", "Harrison", "Jagger"), BAND_NAME = c("Led Zeppelin", "The Beatles", "The Beatles", "The Rolling Stones"))
+
+## Left join again
+
+complete <- artists %>%
+  left_join(band, by = c("last" = "LAST_NAME", "first" = "FIRST_NAME"))
+
+```
+
+## Let's talk about those filtering joins again
+
+We used `semi_join()` and `anti_join()` to filter last class...but honestly, those aren't super intuitive. You can do the same thing with `filter()`, and it's much more transparent.
+
+```{r semi join}
+
+# Semi join
+
+artists %>%
+  semi_join(band, by =  c("last" = "LAST_NAME", "first" = "FIRST_NAME"))
+```
+
+```{r filter}
+
+# Now filter instead...
+
+artists %>%
+  filter(first %in% band$FIRST_NAME & last %in% band$LAST_NAME)
+```
+
+Same result! We can do the same with `anti_join()`:
+
+```{r anti join}
+
+# Anti join
+
+artists %>%
+  anti_join(band, by =  c("last" = "LAST_NAME", "first" = "FIRST_NAME"))
+
+```
+
+```{r filter}
+
+# Now filter instead
+
+artists %>%
+  filter(!first %in% band$FIRST_NAME & !last %in% band$LAST_NAME)
+```
+
+## Circling back to relational data...
+
+Read in an Excel file with more than one tab of info! We use the `readxl` library to do this. Reference <https://readxl.tidyverse.org/articles/articles/readxl-workflows.html> to learn more.
+
+```{r Read in Excel}
+
+#set the name of the file
+filename <- "2019_ncaa_basketball.xlsx"
+
+#reads in the entire workbook
+data <- filename %>% 
+  excel_sheets() %>% 
+  set_names() %>% 
+  map(read_excel, path = filename)
+
+```
+
+Now we can check out the data structures contained in `data`
+
+```{r data}
+
+data$ranking
+data$coaches
+
+```
+
+Let's join them together to create one dataframe. What key(s) will we use?
+
+```{r}
+
+basketball <- data$coaches %>%
+  left_join(data$ranking, by = c('school' = 'TEAM'))
+```
+
+Some `dplyr` practice -- From the top 75 teams by rank, how are the conferences represented?
+
+```{r}
+
+conf <- basketball %>%
+  filter(RK <= 75) %>%
+  group_by(CONF) %>%
+  summarise(count = n()) %>%
+  arrange(-count)
+
+conf
+```
+
+## SQLite Demo
+
+What is SQLite? It's a relational database management system. From their [website](https://sqlite.org/about.html):
+
+"SQLite is an in-process library that implements a [self-contained](https://sqlite.org/selfcontained.html), [serverless](https://sqlite.org/serverless.html), [zero-configuration](https://sqlite.org/zeroconf.html), [transactional](https://sqlite.org/transactional.html) SQL database engine. The code for SQLite is in the [public domain](https://sqlite.org/copyright.html) and is thus free for use for any purpose, commercial or private. SQLite is the [most widely deployed](https://sqlite.org/mostdeployed.html) database in the world with more applications than we can count, including several [high-profile projects.](https://sqlite.org/famous.html)"
+
+Demo...
+
+```{r}
+
+# Create/connect to sqlite databse
+ncaa <- dbConnect(RSQLite::SQLite(), 'ncaa_db.sqlite')
+
+#save tables to db
+dbWriteTable(ncaa, 'ranking', data$ranking)
+dbWriteTable(ncaa, 'coaches', data$coaches)
+
+```
+
+Let's see what is in our database now...
+
+```{r}
+#show the tables
+dbListTables(ncaa)
+```
+
+Let's pull a table from the database
+
+```{r}
+#pull table from db
+coaches <- tbl(ncaa, 'coaches') %>%
+  collect()
+```
+
+Execute a join from the database:
+
+```{r}
+#do the same join we did above, but execute on the database
+ranking_coach <- tbl(ncaa, 'coaches') %>%
+  left_join(tbl(ncaa, 'ranking'), c('school' = 'TEAM')) %>%
+  collect()
+```
+
+We can keep executing our data manipulation on the database!
+
+```{r}
+#add in additional filters before you collect() to execute everything on the DB
+ranking_coach_sub <- tbl(ncaa, 'coaches') %>%
+  left_join(tbl(ncaa, 'ranking'), c('school' = 'TEAM')) %>%
+  filter(is.na(CONF) == FALSE) %>%
+  group_by(CONF) %>%
+  summarise(salary = mean(salary, na.rm = TRUE)) %>%
+  collect()
+
+```

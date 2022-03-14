@@ -1,0 +1,160 @@
+---
+title: 'AY22-2 SE370: Lesson 21: Relational Data II'
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(readxl)
+library(RSQLite)
+library(DBI)
+```
+
+## More on Keys & Joins...
+
+#### Composite Keys are multi-column keys.
+
+For example, let's say we have:
+
+```{r Composite Key Data}
+
+artists <- data.frame(first = c("John", "George", "Mick", "Jimmy"), last = c("Lennon", "Harrison", "Jagger", "Hendricks"), insturment = c("bass", "guitar", "singer", "guitar"))
+
+band <- data.frame(first = c("John", "John", "George", "Mick"), last = c("Bonham","Lennon", "Harrison", "Jagger"), band = c("Led Zeppelin", "The Beatles", "The Beatles", "The Rolling Stones"))
+
+```
+
+Join these dataframes using the first name and last name columns:
+
+```{r Composite}
+
+
+# What happens if we don't use both keys???
+
+
+```
+
+#### What if our keys don't have the same column name?
+
+```{r Data update}
+
+band <- data.frame(FIRST_NAME = c("John", "John", "George", "Mick"), LAST_NAME = c("Bonham","Lennon", "Harrison", "Jagger"), BAND_NAME = c("Led Zeppelin", "The Beatles", "The Beatles", "The Rolling Stones"))
+
+## Left join again
+
+
+```
+
+## Let's talk about those filtering joins again
+
+We used `semi_join()` and `anti_join()` to filter last class...but honestly, those aren't super intuitive. You can do the same thing with `filter()`, and it's much more transparent.
+
+```{r semi join}
+
+# Semi join
+
+
+```
+
+```{r filter}
+
+# Now filter instead...
+
+```
+
+Same result! We can do the same with `anti_join()`:
+
+```{r anti join}
+
+# Anti join
+
+
+
+```
+
+```{r filter}
+
+# Now filter instead
+
+
+```
+
+## Circling back to relational data...
+
+Read in an Excel file with more than one tab of info! We use the `readxl` library to do this. Reference <https://readxl.tidyverse.org/articles/articles/readxl-workflows.html> to learn more.
+
+```{r Read in Excel}
+
+
+
+```
+
+Now we can check out the data structures contained in `data`
+
+```{r data}
+
+
+
+```
+
+Let's join them together to create one dataframe. What key(s) will we use?
+
+```{r}
+
+
+```
+
+Some `dplyr` practice -- From the top 75 teams by rank, how are the conferences represented?
+
+```{r}
+
+
+```
+
+## SQLite Demo
+
+What is SQLite? It's a relational database management system. From their [website](https://sqlite.org/about.html):
+
+"SQLite is an in-process library that implements a [self-contained](https://sqlite.org/selfcontained.html), [serverless](https://sqlite.org/serverless.html), [zero-configuration](https://sqlite.org/zeroconf.html), [transactional](https://sqlite.org/transactional.html) SQL database engine. The code for SQLite is in the [public domain](https://sqlite.org/copyright.html) and is thus free for use for any purpose, commercial or private. SQLite is the [most widely deployed](https://sqlite.org/mostdeployed.html) database in the world with more applications than we can count, including several [high-profile projects.](https://sqlite.org/famous.html)"
+
+Demo...
+
+```{r}
+
+# Create/connect to sqlite databse
+
+
+#save tables to db
+
+
+```
+
+Let's see what is in our database now...
+
+```{r}
+#show the tables
+
+```
+
+Let's pull a table from the database
+
+```{r}
+#pull table from db
+
+```
+
+Execute a join from the database:
+
+```{r}
+#do the same join we did above, but execute on the database
+
+```
+
+We can keep executing our data manipulation on the database!
+
+```{r}
+#add in additional filters before you collect() to execute everything on the DB
+
+
+```
